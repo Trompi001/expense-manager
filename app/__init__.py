@@ -1,9 +1,6 @@
-"""Expense Manager – Application Factory (Platzhalter-Version).
+"""Expense Manager – Application Factory.
 
-Laeuft ohne config.py, repository.py und routes.py, damit das Frontend
-lokal angezeigt werden kann. Die Platzhalter sind mit TODO markiert und
-werden spaeter durch die echten Module ersetzt.
-
+Config ist noch ein Platzhalter (TODO: durch app/config.py mit Config.from_env() ersetzen).
 Start: `python wsgi.py`, dann http://127.0.0.1:8000
 """
 
@@ -13,7 +10,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from flask import Blueprint, Flask, render_template
+from flask import Flask
+
+from app.repository import ExpenseRepository, create_repository
 
 
 # TODO: durch app/config.py ersetzen (Config.from_env()).
@@ -32,46 +31,12 @@ class Config:
     )
 
 
-# TODO: durch app/repository.py ersetzen (ExpenseRepository, create_repository()).
-class InMemoryExpenseRepository:
-    """Haelt Ausgaben nur im Speicher; nach Neustart ist alles weg."""
-
-    def __init__(self) -> None:
-        self._expenses: list[dict[str, Any]] = []
-
-    def list(self) -> list[dict[str, Any]]:
-        return list(self._expenses)
-
-    def add(self, expense: dict[str, Any]) -> None:
-        self._expenses.append(expense)
-
-
-# TODO: durch app/routes.py ersetzen.
-bp = Blueprint("main", __name__)
-
-
-@bp.get("/")
-def index():
-    config: Config = bp_config()
-    return render_template(
-        "index.html",
-        version=config.version,
-        categories=config.categories,
-    )
-
-
-def bp_config() -> Config:
-    from flask import current_app
-
-    return current_app.extensions["app_config"]
-
-
 def create_app(
     config: Config | None = None,
-    repository: Any | None = None,
+    repository: ExpenseRepository | None = None,
     registry: Any | None = None,
 ) -> Flask:
-    """Application factory. Signatur bleibt kompatibel zur spaeteren Version."""
+    """Application factory. Alle Argumente koennen fuer Tests injiziert werden."""
     config = config or Config()
 
     logging.basicConfig(
@@ -81,7 +46,7 @@ def create_app(
 
     app = Flask(__name__)
     app.extensions["app_config"] = config
-    app.extensions["repository"] = repository or InMemoryExpenseRepository()
+    app.extensions["repository"] = repository or create_repository(config)
 
     # Prometheus nur aktivieren, wenn die Pakete installiert sind.
     try:
@@ -91,6 +56,8 @@ def create_app(
         metrics.info("expense_manager_info", "Application info", version=config.version)
     except ImportError:
         logging.getLogger(__name__).info("Prometheus nicht installiert, Metriken deaktiviert.")
+
+    from app.routes import bp
 
     app.register_blueprint(bp)
     return app
