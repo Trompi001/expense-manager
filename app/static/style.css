@@ -47,14 +47,74 @@ form {
   margin: 1.5rem 0;
 }
 
-input[type="text"],
-#title {
-  flex: 1;
+form {
+  flex-wrap: wrap;
+}
+
+form input,
+form select {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
   color: var(--fg);
+  font: inherit;
+}
+
+#description {
+  flex: 1 1 100%;
+}
+
+/* Betragsfeld mit festem "CHF": der Rahmen liegt am Label, nicht am Input */
+.currency-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.currency-input:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.currency-input span {
+  padding-left: 0.75rem;
+  color: var(--muted);
+}
+
+form .currency-input input {
+  width: 6rem;
+  padding-left: 0.4rem;
+  border: none;
+  outline: none;
+  background: transparent;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.filter select {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+li small {
+  color: var(--muted);
+}
+
+li.empty {
+  color: var(--muted);
 }
 
 button {
