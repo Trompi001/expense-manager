@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Taskboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body>
+    <main>
+        <h1>Expense Manager</h1>
+        <p class="version">Version {{ version }}</p>
+
+        <form id="new-expense">
+            <input id="expense" name="expense" placeholder="Neue Ausgabe…" maxlength="200" required
+                autocomplete="off" />
+            <select id="category" name="category" required>
+                <option value="" disabled selected>Kategorie auswählen</option>
+                {% for category in categories %}
+                <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+            </select>
+            <input id="date" name="date" type="date" required />
+            <button type="submit">Hinzufügen</button>
+        </form>
+
+        <p id="error" class="error" hidden></p>
+        <ul id="tasks"></ul>
+    </main>
+
+    <script>
+
+    </script>
+</body>
+
+</html>
