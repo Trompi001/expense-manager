@@ -173,3 +173,40 @@ li.done span {
   text-decoration: line-through;
   color: var(--muted);
 }
+
+#summary {
+  margin-top: 2rem;
+}
+
+#summary h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+}
+
+#summary-table {
+  width: 100%;
+  margin-top: 0.75rem;
+  border-collapse: collapse;
+}
+
+#summary-table th,
+#summary-table td {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+#summary-table th {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+#summary-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#summary-table td.empty {
+  color: var(--muted);
+}

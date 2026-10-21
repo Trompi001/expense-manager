@@ -56,6 +56,19 @@
         </select>
       </label>
       <ul id="expenses"></ul>
+
+      <section id="summary">
+        <h2>Auswertung</h2>
+        <label class="filter">
+          Summen je:
+          <select id="group-by">
+            <option value="category">Kategorie</option>
+            <option value="month">Monat</option>
+            <option value="category_month">Kategorie und Monat</option>
+          </select>
+        </label>
+        <table id="summary-table"></table>
+      </section>
     </main>
 
     <script>
@@ -108,7 +121,7 @@
         } else if (editingId === expense.id) {
           resetForm();
         }
-        await loadExpenses();
+        await refresh();
       }
 
       // "2026-10-06" -> "06.10.2026". Bewusst ohne new Date(), weil das den
@@ -156,7 +169,73 @@
         }
       }
 
+      const groupBy = document.getElementById("group-by");
+      const summaryTable = document.getElementById("summary-table");
+
+      // "2024-06" -> "06.2024"
+      function formatMonth(month) {
+        const [year, m] = month.split("-");
+        return `${m}.${year}`;
+      }
+
+      function makeRow(cells, tag = "td") {
+        const row = document.createElement("tr");
+        for (const { text, right } of cells) {
+          const cell = document.createElement(tag);
+          cell.textContent = text;
+          if (right) cell.className = "num";
+          row.append(cell);
+        }
+        return row;
+      }
+
+      async function loadSummary() {
+        const res = await fetch(`/api/summary?group_by=${groupBy.value}`);
+        if (!res.ok) {
+          summaryTable.replaceChildren();
+          return;
+        }
+        const rows = await res.json();
+        summaryTable.replaceChildren();
+
+        const labels = {
+          category: ["Kategorie"],
+          month: ["Monat"],
+          category_month: ["Kategorie", "Monat"],
+        }[groupBy.value];
+        const head = makeRow(
+          [...labels.map((text) => ({ text })), { text: "Summe (CHF)", right: true }],
+          "th",
+        );
+        summaryTable.append(head);
+
+        if (rows.length === 0) {
+          const empty = document.createElement("tr");
+          const cell = document.createElement("td");
+          cell.colSpan = labels.length + 1;
+          cell.className = "empty";
+          cell.textContent = "Keine Ausgaben vorhanden.";
+          empty.append(cell);
+          summaryTable.append(empty);
+          return;
+        }
+
+        for (const r of rows) {
+          const cells = [];
+          if (r.category !== undefined) cells.push({ text: r.category });
+          if (r.month !== undefined) cells.push({ text: formatMonth(r.month) });
+          cells.push({ text: r.total, right: true });
+          summaryTable.append(makeRow(cells));
+        }
+      }
+
+      // Liste und Auswertung gemeinsam aktualisieren
+      async function refresh() {
+        await Promise.all([loadExpenses(), loadSummary()]);
+      }
+
       filter.addEventListener("change", loadExpenses);
+      groupBy.addEventListener("change", loadSummary);
       cancelButton.addEventListener("click", () => {
         showError("");
         resetForm();
@@ -181,10 +260,10 @@
         }
 
         resetForm();
-        await loadExpenses();
+        await refresh();
       });
 
-      loadExpenses();
+      refresh();
     </script>
   </body>
 </html>
