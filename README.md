@@ -4,71 +4,127 @@ Eine Web-App zur Ausgabenverwaltung, mit der Nutzerinnen und Nutzer ihre Ausgabe
 
 ## Funktionen
 
-- **Ausgaben erfassen:** Jede Ausgabe besteht aus Betrag, Kategorie und Datum und kann bearbeitet oder gelöscht werden.
-- **Aggregationen (fachlicher Kern):** Summen je Kategorie, je Monat sowie je Kategorie und Monat kombiniert.
-- **Budget-Warnungen (optional):** Pro Kategorie kann ein monatliches Budget hinterlegt werden. Wird es überschritten, zeigt die App eine Warnung an.
+- **Ausgaben erfassen:** Jede Ausgabe besteht aus Beschreibung, Betrag, Kategorie und Datum und kann bearbeitet oder gelöscht werden. Die Liste lässt sich nach Kategorie und Monat filtern.
+- **Aggregationen (fachlicher Kern):** Summen je Kategorie, je Monat sowie je Kategorie und Monat kombiniert, als Balkenansicht im Tab «Auswertung».
+- **Budget-Warnungen (optional, geplant):** Pro Kategorie kann ein monatliches Budget hinterlegt werden. Wird es überschritten, zeigt die App eine Warnung an.
+
+Beträge werden intern als `Decimal` gerechnet und in CHF mit zwei Nachkommastellen ausgegeben.
 
 ## Voraussetzungen
 
-- Python ≥ 3.12
+- Python ≥ 3.9
 - Git
-- Docker ≥ 24
-- uv
+- `make` (optional, für die Kurzbefehle im `Makefile`)
 
 ## Installation
 
 ```
-git clone git@github.com:<Tromppi001>/expense-manager.git
+git clone git@github.com:<benutzername>/expense-manager.git
 cd expense-manager
-uv sync
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
 ```
 
-`uv sync` legt die virtuelle Umgebung `.venv` an und installiert alle Abhängigkeiten exakt in den Versionen aus `uv.lock`. Ein manuelles Aktivieren der Umgebung ist nicht nötig, da alle Befehle über `uv run` ausgeführt werden.
+Statt des letzten Befehls geht auch `make install`. Für den reinen Betrieb ohne Test- und Lint-Werkzeuge genügt `pip install -r requirements.txt`.
 
 ## Nutzung
- 
-Lokal starten:
- 
+
+Entwicklungsserver starten:
+
 ```
-uv run flask --app src.app run
+make run
 ```
- 
-Der Befehl startet den Entwicklungsserver. Die App ist danach unter <http://localhost:5000> erreichbar. Beim ersten Start wird automatisch eine leere SQLite-Datenbank (`instance/expenses.db`) angelegt.
- 
-Alternativ im Container:
- 
+
+oder ohne `make`:
+
 ```
-docker build -t expense-manager .
-docker run -p 5000:5000 expense-manager
+flask --app wsgi run --debug --port 8000
 ```
- 
-Tests ausführen:
- 
+
+Die App ist danach unter <http://127.0.0.1:8000> erreichbar. Die Ausgaben liegen aktuell nur im Arbeitsspeicher und sind nach einem Neustart weg.
+
+Weitere Befehle (`make help` zeigt alle):
+
+| Befehl | Wirkung |
+|---|---|
+| `make test` | führt die Testsuite aus (`pytest`) |
+| `make cov` | Testsuite mit Abdeckungsbericht |
+| `make lint` | prüft Stil und Formatierung mit ruff |
+| `make fmt` | formatiert den Code mit ruff |
+| `make clean` | entfernt Caches und Testartefakte |
+
+## Konfiguration
+
+Die Konfiguration kommt aus Umgebungsvariablen (siehe `app/config.py`):
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `APP_VERSION` | `0.0.0-dev` | Version, die `/health` und die Startseite anzeigen |
+| `LOG_LEVEL` | `INFO` | Log-Stufe (`DEBUG`, `INFO`, `WARNING`, …) |
+| `DATABASE_URL` | – | für eine spätere Datenbank vorgesehen, hat aktuell noch keine Wirkung |
+
+Die Kategorien sind in `app/config.py` hinterlegt: Lebensmittel, Miete, Transport, Freizeit, Sonstiges.
+
+## API
+
+| Methode und Pfad | Beschreibung |
+|---|---|
+| `GET /api/expense` | Liste, neueste zuerst. Optionale Filter: `?category=Miete`, `?month=2026-10` (kombinierbar) |
+| `POST /api/expense` | neue Ausgabe (`description`, `amount`, `category`, `date`), Antwort 201 |
+| `GET /api/expense/<id>` | einzelne Ausgabe, 404 wenn unbekannt |
+| `PUT /api/expense/<id>` | ersetzt alle Felder einer Ausgabe |
+| `DELETE /api/expense/<id>` | löscht eine Ausgabe, Antwort 204 |
+| `GET /api/summary?group_by=…` | Summen, `group_by` ist `category`, `month` oder `category_month` |
+| `GET /health` | Liveness: der Prozess läuft |
+| `GET /ready` | Readiness: die Speicherschicht ist bereit (sonst 503) |
+| `GET /metrics` | Prometheus-Metriken |
+
+Ungültige Eingaben werden mit 400 und `{"error": "…"}` beantwortet.
+
+Beispiel:
+
 ```
-uv run pytest
+curl -X POST http://127.0.0.1:8000/api/expense \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Wocheneinkauf", "amount": 84.35, "category": "Lebensmittel", "date": "2026-10-18"}'
+
+curl "http://127.0.0.1:8000/api/summary?group_by=category"
 ```
- 
-Die Tests laufen zusätzlich bei jedem Push und Pull Request automatisch über GitHub Actions (siehe `.github/workflows/ci.yml`).
+
+## Tests
+
+Mit aktivierter virtueller Umgebung, im Projektordner:
+
+```
+pytest
+```
+
+`make test` führt denselben Befehl aus. Mit Abdeckungsbericht: `make cov` (entspricht `pytest --cov=app --cov-report=term-missing`).
+
+Die Tests liegen in `tests/`, eine Datei pro Thema (Liste, Erstellen, Ändern, Löschen, Auswertung, Health, …). Die Fixtures `app` und `client` in `tests/conftest.py` geben jedem Test einen frischen Speicher.
 
 ## Projektstruktur
- 
+
 ```
 expense-manager/
 ├── README.md
-├── .gitignore
 ├── LICENSE
-├── pyproject.toml         Projektmetadaten und Abhängigkeiten
-├── uv.lock                Gesperrte Versionen aller Abhängigkeiten
-├── Dockerfile             Container-Image der App
-├── .github/
-│   └── workflows/
-│       └── ci.yml         CI-Pipeline (Tests, Linting)
-├── src/                   Quellcode der Anwendung
-│   ├── app.py             Einstiegspunkt (Flask-App)
-│   ├── models.py          Datenmodell (Ausgabe, Kategorie, Budget)
-│   ├── reports.py         Aggregationen und Budget-Prüfung
-│   └── templates/         HTML-Vorlagen
-└── tests/                 Automatisierte Tests (pytest)
+├── Makefile                Kurzbefehle (run, test, lint, …)
+├── pytest.ini              pytest-Konfiguration
+├── requirements.txt        Laufzeit-Abhängigkeiten
+├── requirements-dev.txt    zusätzlich Test- und Lint-Werkzeuge
+├── wsgi.py                 Einstiegspunkt (z. B. für gunicorn)
+├── app/
+│   ├── __init__.py         create_app(): Application Factory
+│   ├── aggregations.py     Summen je Kategorie und Monat (reine Funktionen)
+│   ├── config.py           Konfiguration aus der Umgebung
+│   ├── models.py           Ausgabe und Validierung
+│   ├── repository.py       Speicherschicht (aktuell im Arbeitsspeicher)
+│   ├── routes.py           HTTP-Routen (API und Startseite)
+│   ├── static/             CSS
+│   └── templates/          HTML-Vorlage
+└── tests/                  automatisierte Tests (pytest)
 ```
 
 ## Lizenz
