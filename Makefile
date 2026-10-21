@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-IMAGE ?= taskboard
+IMAGE ?= expense-manager
 TAG   ?= local
 
 .PHONY: help install run test lint fmt cov build up down clean

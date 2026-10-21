@@ -1,7 +1,5 @@
-# Runtime dependencies of the Taskboard application.
+# Runtime dependencies of the Expense Manager application.
 # Compatible-release pins (~=) allow patch and minor updates but no major jumps.
-# For byte-for-byte reproducible builds see requirements.lock.txt
-# (generate with: pip freeze > requirements.lock.txt).
 
 Flask~=3.0
 gunicorn~=22.0
