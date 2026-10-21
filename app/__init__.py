@@ -1,34 +1,18 @@
 """Expense Manager – Application Factory.
 
-Config ist noch ein Platzhalter (TODO: durch app/config.py mit Config.from_env() ersetzen).
+Konfiguration kommt aus app/config.py (Config.from_env()).
 Start: `python wsgi.py`, dann http://127.0.0.1:8000
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any
 
 from flask import Flask
 
+from app.config import Config
 from app.repository import ExpenseRepository, create_repository
-
-
-# TODO: durch app/config.py ersetzen (Config.from_env()).
-@dataclass
-class Config:
-    version: str = "0.1-dev"
-    log_level: str = "DEBUG"
-    categories: list[str] = field(
-        default_factory=lambda: [
-            "Lebensmittel",
-            "Miete",
-            "Transport",
-            "Freizeit",
-            "Sonstiges",
-        ]
-    )
 
 
 def create_app(
@@ -37,7 +21,7 @@ def create_app(
     registry: Any | None = None,
 ) -> Flask:
     """Application factory. Alle Argumente koennen fuer Tests injiziert werden."""
-    config = config or Config()
+    config = config or Config.from_env()
 
     logging.basicConfig(
         level=config.log_level,
