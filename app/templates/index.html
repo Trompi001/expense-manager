@@ -8,107 +8,117 @@
   </head>
   <body>
     <main>
-      <h1>Expense Manager</h1>
-      <p class="version">Version {{ version }}</p>
+      <header class="top">
+        <h1>Expense Manager</h1>
+        <button type="button" id="open-form" class="btn primary">Neue Ausgabe</button>
+      </header>
 
-      <form id="new-expense">
-        <input
-          id="description"
-          name="description"
-          placeholder="Neue Ausgabe…"
-          maxlength="200"
-          required
-          autocomplete="off"
-        />
-        <label class="currency-input">
-          <span>CHF</span>
-          <input
-            id="amount"
-            name="amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            placeholder="0.00"
-            aria-label="Betrag in CHF"
-            required
-          />
-        </label>
-        <select id="category" name="category" required>
-          <option value="" disabled selected>Kategorie</option>
-          {% for category in categories %}
-            <option value="{{ category }}">{{ category }}</option>
-          {% endfor %}
-        </select>
-        <input id="date" name="date" type="date" required />
-        <button type="submit" id="submit">Hinzufügen</button>
-        <button type="button" id="cancel" class="secondary" hidden>Abbrechen</button>
-      </form>
+      <div class="tabs" role="tablist" aria-label="Ansicht">
+        <button type="button" role="tab" id="tab-expenses" aria-controls="panel-expenses" aria-selected="true">Ausgaben</button>
+        <button type="button" role="tab" id="tab-summary" aria-controls="panel-summary" aria-selected="false" tabindex="-1">Auswertung</button>
+      </div>
 
-      <p id="error" class="error" hidden></p>
+      <section id="panel-expenses" role="tabpanel" aria-labelledby="tab-expenses">
+        <div class="toolbar">
+          <div class="total">
+            <span class="total-amount" id="total">0.00</span>
+            <span class="total-label" id="total-label">CHF in 0 Ausgaben</span>
+          </div>
+          <label class="field inline">
+            <span class="sr-only">Kategorie filtern</span>
+            <select id="filter">
+              <option value="">Alle Kategorien</option>
+              {% for category in categories %}
+                <option value="{{ category }}">{{ category }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <ul id="expenses" class="expenses"></ul>
+      </section>
 
-      <label class="filter">
-        Anzeigen:
-        <select id="filter">
-          <option value="">Alle Kategorien</option>
-          {% for category in categories %}
-            <option value="{{ category }}">{{ category }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <ul id="expenses"></ul>
+      <section id="panel-summary" role="tabpanel" aria-labelledby="tab-summary" hidden>
+        <div class="segmented" role="group" aria-label="Summen gruppieren nach" id="group-by">
+          <button type="button" data-group="category" aria-pressed="true">Kategorie</button>
+          <button type="button" data-group="month" aria-pressed="false">Monat</button>
+          <button type="button" data-group="category_month" aria-pressed="false">Kategorie und Monat</button>
+        </div>
+        <div id="summary-view" class="summary"></div>
+      </section>
+
+      <footer class="foot">Version {{ version }}</footer>
     </main>
 
+    <dialog id="form-dialog" aria-labelledby="form-title">
+      <form id="expense-form" method="dialog" novalidate>
+        <h2 id="form-title">Neue Ausgabe</h2>
+
+        <label class="field wide">
+          <span>Beschreibung</span>
+          <input id="description" name="description" maxlength="200" required autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Betrag in CHF</span>
+          <input id="amount" name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+        </label>
+
+        <label class="field">
+          <span>Datum</span>
+          <input id="date" name="date" type="date" required />
+        </label>
+
+        <label class="field wide">
+          <span>Kategorie</span>
+          <select id="category" name="category" required>
+            <option value="" disabled selected>Kategorie wählen</option>
+            {% for category in categories %}
+              <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <p id="error" class="error wide" role="alert" hidden></p>
+
+        <div class="actions wide">
+          <button type="button" id="cancel" class="btn">Abbrechen</button>
+          <button type="submit" id="submit" class="btn primary">Hinzufügen</button>
+        </div>
+      </form>
+    </dialog>
+
     <script>
-      const form = document.getElementById("new-expense");
-      const errorBox = document.getElementById("error");
-      const container = document.getElementById("expenses");
+      const CATEGORIES = {{ categories|tojson }};
 
-      // Datum standardmaessig auf heute setzen
-      document.getElementById("date").valueAsDate = new Date();
-
-      function showError(message) {
-        errorBox.textContent = message;
-        errorBox.hidden = !message;
-      }
-
-      const filter = document.getElementById("filter");
-      const submitButton = document.getElementById("submit");
-      const cancelButton = document.getElementById("cancel");
+      const $ = (id) => document.getElementById(id);
+      const dialog = $("form-dialog");
+      const form = $("expense-form");
+      const errorBox = $("error");
+      const submitButton = $("submit");
+      const filter = $("filter");
+      const list = $("expenses");
+      const summaryView = $("summary-view");
 
       // ID der Ausgabe, die gerade bearbeitet wird (null = neue Ausgabe)
       let editingId = null;
+      let group = "category";
 
-      function resetForm() {
-        editingId = null;
-        form.reset();
-        document.getElementById("date").valueAsDate = new Date();
-        submitButton.textContent = "Hinzufügen";
-        cancelButton.hidden = true;
+      // --- Hilfsfunktionen --------------------------------------------------
+
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
       }
 
-      function startEdit(expense) {
-        editingId = expense.id;
-        showError("");
-        form.elements.description.value = expense.description;
-        form.elements.amount.value = expense.amount;
-        form.elements.category.value = expense.category;
-        form.elements.date.value = expense.date;
-        submitButton.textContent = "Speichern";
-        cancelButton.hidden = false;
-        form.elements.description.focus();
-      }
-
-      async function deleteExpense(expense) {
-        if (!confirm(`„${expense.description}“ wirklich löschen?`)) return;
-        showError("");
-        const res = await fetch(`/api/expense/${expense.id}`, { method: "DELETE" });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          showError(body.error || `Löschen fehlgeschlagen (HTTP ${res.status})`);
-        } else if (editingId === expense.id) {
-          resetForm();
-        }
-        await loadExpenses();
+      // Jede Kategorie bekommt anhand ihrer Position einen festen Farbpunkt.
+      function dot(category) {
+        const node = el("i", "dot");
+        const index = Math.max(CATEGORIES.indexOf(category), 0);
+        node.style.setProperty("--hue", (index * 67 + 160) % 360);
+        node.setAttribute("aria-hidden", "true");
+        return node;
       }
 
       // "2026-10-06" -> "06.10.2026". Bewusst ohne new Date(), weil das den
@@ -118,53 +128,72 @@
         return `${day}.${month}.${year}`;
       }
 
-      async function loadExpenses() {
-        // Filter als Query-Parameter, z. B. /api/expense?category=Lebensmittel
-        const params = new URLSearchParams();
-        if (filter.value) params.set("category", filter.value);
-        const res = await fetch(`/api/expense?${params}`);
-        const expenses = await res.json();
-        container.replaceChildren();
+      const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+        "August", "September", "Oktober", "November", "Dezember"];
 
-        if (expenses.length === 0) {
-          const empty = document.createElement("li");
-          empty.className = "empty";
-          empty.textContent = "Keine Ausgaben vorhanden.";
-          container.append(empty);
-          return;
-        }
-
-        // Die API liefert bereits nach Datum sortiert (neueste zuerst)
-        for (const e of expenses) {
-          const item = document.createElement("li");
-          const text = document.createElement("span");
-          text.textContent = `${formatDate(e.date)} – ${e.description}`;
-          const category = document.createElement("small");
-          category.textContent = e.category;
-          const amount = document.createElement("strong");
-          amount.textContent = `${e.amount} CHF`;
-          const editButton = document.createElement("button");
-          editButton.type = "button";
-          editButton.textContent = "Bearbeiten";
-          editButton.addEventListener("click", () => startEdit(e));
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.textContent = "Löschen";
-          deleteButton.addEventListener("click", () => deleteExpense(e));
-          item.append(text, category, amount, editButton, deleteButton);
-          container.append(item);
-        }
+      // "2024-06" -> "Juni 2024"
+      function formatMonth(iso) {
+        const [year, month] = iso.split("-");
+        return `${MONTHS[Number(month) - 1]} ${year}`;
       }
 
-      filter.addEventListener("change", loadExpenses);
-      cancelButton.addEventListener("click", () => {
+      // "12345.50" -> "12’345.50" (Schweizer Tausendertrennung)
+      function formatChf(amount) {
+        const [whole, cents] = amount.split(".");
+        return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, "’")}.${cents}`;
+      }
+
+      // Die API liefert Betraege als "12.50"; ohne Punkt sind das Rappen.
+      const toCents = (amount) => parseInt(amount.replace(".", ""), 10);
+      const fromCents = (cents) =>
+        `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.hidden = !message;
+      }
+
+      async function errorMessage(res, fallback) {
+        const body = await res.json().catch(() => ({}));
+        return body.error || `${fallback} (HTTP ${res.status})`;
+      }
+
+      function emptyState(text) {
+        return el("p", "empty", text);
+      }
+
+      // --- Formular-Fenster -------------------------------------------------
+
+      function openForm(expense) {
+        editingId = expense ? expense.id : null;
+        form.reset();
         showError("");
-        resetForm();
+        $("form-title").textContent = expense ? "Ausgabe bearbeiten" : "Neue Ausgabe";
+        submitButton.textContent = expense ? "Speichern" : "Hinzufügen";
+        if (expense) {
+          form.elements.description.value = expense.description;
+          form.elements.amount.value = expense.amount;
+          form.elements.category.value = expense.category;
+          form.elements.date.value = expense.date;
+        } else {
+          form.elements.date.valueAsDate = new Date();
+        }
+        dialog.showModal();
+        form.elements.description.focus();
+      }
+
+      $("open-form").addEventListener("click", () => openForm(null));
+      $("cancel").addEventListener("click", () => dialog.close());
+
+      // Klick auf den abgedunkelten Hintergrund schliesst das Fenster.
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
       });
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         showError("");
+        if (!form.reportValidity()) return;
 
         const data = Object.fromEntries(new FormData(form));
         const url = editingId === null ? "/api/expense" : `/api/expense/${editingId}`;
@@ -175,16 +204,172 @@
         });
 
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          showError(body.error || `Speichern fehlgeschlagen (HTTP ${res.status})`);
+          showError(await errorMessage(res, "Speichern fehlgeschlagen"));
           return;
         }
-
-        resetForm();
-        await loadExpenses();
+        dialog.close();
+        await refresh();
       });
 
-      loadExpenses();
+      // --- Ausgaben ---------------------------------------------------------
+
+      async function deleteExpense(expense) {
+        if (!confirm(`„${expense.description}“ wirklich löschen?`)) return;
+        const res = await fetch(`/api/expense/${expense.id}`, { method: "DELETE" });
+        if (!res.ok) alert(await errorMessage(res, "Löschen fehlgeschlagen"));
+        await refresh();
+      }
+
+      function expenseRow(e) {
+        const row = el("li", "row");
+
+        const main = el("div", "main");
+        const category = el("span", "category");
+        category.append(dot(e.category), e.category);
+        main.append(el("span", "description", e.description), category);
+
+        const date = el("time", "date", formatDate(e.date));
+        date.dateTime = e.date;
+
+        const amount = el("strong", "amount", formatChf(e.amount));
+
+        const actions = el("div", "row-actions");
+        const edit = el("button", "link", "Bearbeiten");
+        edit.type = "button";
+        edit.setAttribute("aria-label", `${e.description} bearbeiten`);
+        edit.addEventListener("click", () => openForm(e));
+        const remove = el("button", "link danger", "Löschen");
+        remove.type = "button";
+        remove.setAttribute("aria-label", `${e.description} löschen`);
+        remove.addEventListener("click", () => deleteExpense(e));
+        actions.append(edit, remove);
+
+        row.append(date, main, amount, actions);
+        return row;
+      }
+
+      async function loadExpenses() {
+        const params = new URLSearchParams();
+        if (filter.value) params.set("category", filter.value);
+        const res = await fetch(`/api/expense?${params}`);
+        if (!res.ok) {
+          list.replaceChildren(el("li", "empty", await errorMessage(res, "Laden fehlgeschlagen")));
+          return;
+        }
+        const expenses = await res.json();
+
+        const cents = expenses.reduce((sum, e) => sum + toCents(e.amount), 0);
+        $("total").textContent = formatChf(fromCents(cents));
+        $("total-label").textContent =
+          `CHF in ${expenses.length} ${expenses.length === 1 ? "Ausgabe" : "Ausgaben"}`;
+
+        if (expenses.length === 0) {
+          const hint = filter.value
+            ? "Keine Ausgaben in dieser Kategorie."
+            : "Noch keine Ausgaben. Erfasse die erste mit „Neue Ausgabe“.";
+          list.replaceChildren(el("li", "empty", hint));
+          return;
+        }
+        // Die API liefert bereits nach Datum sortiert (neueste zuerst).
+        list.replaceChildren(...expenses.map(expenseRow));
+      }
+
+      filter.addEventListener("change", loadExpenses);
+
+      // --- Auswertung -------------------------------------------------------
+
+      function barRow(label, total, max, category) {
+        const row = el("div", "bar-row");
+        const name = el("span", "bar-label");
+        if (category) name.append(dot(category));
+        name.append(label);
+
+        const track = el("span", "bar-track");
+        const fill = el("span", "bar-fill");
+        fill.style.width = `${max > 0 ? (toCents(total) / max) * 100 : 0}%`;
+        if (category) fill.style.setProperty("--hue", (Math.max(CATEGORIES.indexOf(category), 0) * 67 + 160) % 360);
+        track.append(fill);
+
+        row.append(name, track, el("strong", "bar-total", formatChf(total)));
+        return row;
+      }
+
+      async function loadSummary() {
+        const res = await fetch(`/api/summary?group_by=${group}`);
+        if (!res.ok) {
+          summaryView.replaceChildren(emptyState(await errorMessage(res, "Laden fehlgeschlagen")));
+          return;
+        }
+        const rows = await res.json();
+        if (rows.length === 0) {
+          summaryView.replaceChildren(emptyState("Noch keine Ausgaben zum Auswerten."));
+          return;
+        }
+        const max = Math.max(...rows.map((r) => toCents(r.total)));
+
+        if (group === "category") {
+          summaryView.replaceChildren(...rows.map((r) => barRow(r.category, r.total, max, r.category)));
+        } else if (group === "month") {
+          summaryView.replaceChildren(...rows.map((r) => barRow(formatMonth(r.month), r.total, max)));
+        } else {
+          // Nach Monat gruppieren; die API liefert Monate bereits absteigend.
+          const months = new Map();
+          for (const r of rows) {
+            if (!months.has(r.month)) months.set(r.month, []);
+            months.get(r.month).push(r);
+          }
+          const sections = [];
+          for (const [month, items] of months) {
+            const section = el("section", "month");
+            const subtotal = items.reduce((sum, r) => sum + toCents(r.total), 0);
+            const head = el("h3", "month-head");
+            head.append(el("span", "", formatMonth(month)), el("strong", "", formatChf(fromCents(subtotal))));
+            section.append(head, ...items.map((r) => barRow(r.category, r.total, max, r.category)));
+            sections.push(section);
+          }
+          summaryView.replaceChildren(...sections);
+        }
+      }
+
+      document.querySelectorAll("#group-by button").forEach((button) => {
+        button.addEventListener("click", () => {
+          group = button.dataset.group;
+          document.querySelectorAll("#group-by button").forEach((b) =>
+            b.setAttribute("aria-pressed", String(b === button)));
+          loadSummary();
+        });
+      });
+
+      // --- Tabs -------------------------------------------------------------
+
+      const tabs = [$("tab-expenses"), $("tab-summary")];
+
+      function selectTab(selected) {
+        for (const tab of tabs) {
+          const active = tab === selected;
+          tab.setAttribute("aria-selected", String(active));
+          tab.tabIndex = active ? 0 : -1;
+          $(tab.getAttribute("aria-controls")).hidden = !active;
+        }
+        if (selected === tabs[1]) loadSummary();
+      }
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => selectTab(tab));
+        tab.addEventListener("keydown", (event) => {
+          if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+          const next = tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+          selectTab(next);
+          next.focus();
+        });
+      });
+
+      // Liste und Auswertung gemeinsam aktualisieren
+      async function refresh() {
+        await Promise.all([loadExpenses(), loadSummary()]);
+      }
+
+      refresh();
     </script>
   </body>
 </html>
