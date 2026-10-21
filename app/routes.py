@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 
+from app.aggregations import (
+    sum_by_category,
+    sum_by_category_and_month,
+    sum_by_month,
+)
 from app.models import (
     ValidationError,
     validate_amount,
@@ -104,3 +109,37 @@ def delete_expense(expense_id: int):
     if not _repo().delete(expense_id):
         return jsonify(error="Ausgabe nicht gefunden"), 404
     return "", 204
+
+
+GROUPINGS = ("category", "month", "category_month")
+
+
+@bp.get("/api/summary")
+def summary():
+    """Summen der Ausgaben.
+
+    /api/summary?group_by=category        -> Summe je Kategorie
+    /api/summary?group_by=month           -> Summe je Monat (JJJJ-MM)
+    /api/summary?group_by=category_month  -> Summe je Kategorie und Monat
+    """
+    group_by = request.args.get("group_by")
+    if group_by not in GROUPINGS:
+        raise ValidationError("group_by muss category, month oder category_month sein")
+
+    expenses = _repo().list()
+    if group_by == "category":
+        rows = [
+            {"category": category, "total": f"{total:.2f}"}
+            for category, total in sum_by_category(expenses).items()
+        ]
+    elif group_by == "month":
+        rows = [
+            {"month": month, "total": f"{total:.2f}"}
+            for month, total in sum_by_month(expenses).items()
+        ]
+    else:
+        rows = [
+            {"category": category, "month": month, "total": f"{total:.2f}"}
+            for (category, month), total in sum_by_category_and_month(expenses).items()
+        ]
+    return jsonify(rows)
