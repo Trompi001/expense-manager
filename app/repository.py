@@ -20,9 +20,16 @@ class ExpenseRepository(Protocol):
         self, category: str | None = None, month: str | None = None
     ) -> list[Expense]: ...
     def get(self, expense_id: int) -> Expense | None: ...
-    def add(self, description: str, amount: Decimal, category: str, date: date) -> Expense: ...
+    def add(
+        self, description: str, amount: Decimal, category: str, date: date
+    ) -> Expense: ...
     def update(
-        self, expense_id: int, description: str, amount: Decimal, category: str, date: date
+        self,
+        expense_id: int,
+        description: str,
+        amount: Decimal,
+        category: str,
+        date: date,
     ) -> Expense | None: ...
     def delete(self, expense_id: int) -> bool: ...
     def healthy(self) -> bool: ...
@@ -36,7 +43,9 @@ class InMemoryExpenseRepository:
         self._next_id = 1
         self._lock = threading.Lock()
 
-    def list(self, category: str | None = None, month: str | None = None) -> list[Expense]:
+    def list(
+        self, category: str | None = None, month: str | None = None
+    ) -> list[Expense]:
         """Ausgaben nach Datum sortiert (neueste zuerst).
 
         Optional nach Kategorie und/oder Monat ("JJJJ-MM") gefiltert.
@@ -54,7 +63,9 @@ class InMemoryExpenseRepository:
         with self._lock:
             return self._expenses.get(expense_id)
 
-    def add(self, description: str, amount: Decimal, category: str, date: date) -> Expense:
+    def add(
+        self, description: str, amount: Decimal, category: str, date: date
+    ) -> Expense:
         with self._lock:
             expense = Expense(
                 id=self._next_id,
@@ -68,7 +79,12 @@ class InMemoryExpenseRepository:
             return expense
 
     def update(
-        self, expense_id: int, description: str, amount: Decimal, category: str, date: date
+        self,
+        expense_id: int,
+        description: str,
+        amount: Decimal,
+        category: str,
+        date: date,
     ) -> Expense | None:
         """Ersetzt alle Felder einer Ausgabe. Gibt None zurueck, wenn die ID unbekannt ist."""
         with self._lock:

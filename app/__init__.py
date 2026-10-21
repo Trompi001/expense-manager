@@ -39,7 +39,9 @@ def create_app(
         metrics = PrometheusMetrics(app, registry=registry)
         metrics.info("expense_manager_info", "Application info", version=config.version)
     except ImportError:
-        logging.getLogger(__name__).info("Prometheus nicht installiert, Metriken deaktiviert.")
+        logging.getLogger(__name__).info(
+            "Prometheus nicht installiert, Metriken deaktiviert."
+        )
 
     from app.routes import bp
 

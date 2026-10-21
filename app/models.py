@@ -38,7 +38,9 @@ def validate_description(value: object) -> str:
         raise ValidationError("Beschreibung fehlt")
     value = value.strip()
     if len(value) > MAX_DESCRIPTION_LENGTH:
-        raise ValidationError(f"Beschreibung ist laenger als {MAX_DESCRIPTION_LENGTH} Zeichen")
+        raise ValidationError(
+            f"Beschreibung ist laenger als {MAX_DESCRIPTION_LENGTH} Zeichen"
+        )
     return value
 
 
