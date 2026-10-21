@@ -168,6 +168,13 @@ select {
   margin-bottom: 0.75rem;
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .total {
   display: flex;
   flex-direction: column;
@@ -430,6 +437,24 @@ dialog .actions {
 /* --- Schmale Bildschirme ------------------------------------------------ */
 
 @media (max-width: 36rem) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filters {
+    flex-wrap: nowrap;
+    justify-content: stretch;
+  }
+
+  .filters .field {
+    flex: 1;
+  }
+
+  .filters .field.inline select {
+    width: 100%;
+  }
+
   h1 {
     font-size: 1.35rem;
   }

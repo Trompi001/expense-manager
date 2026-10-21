@@ -13,6 +13,7 @@ from app.models import (
     validate_category,
     validate_date,
     validate_description,
+    validate_month,
 )
 
 bp = Blueprint("main", __name__)
@@ -58,12 +59,17 @@ def ready():
 def list_expenses():
     """Ausgaben nach Datum sortiert (neueste zuerst).
 
-    Optionaler Filter: /api/expense?category=Lebensmittel
+    Optionale Filter (auch kombinierbar):
+    /api/expense?category=Lebensmittel
+    /api/expense?month=2024-06
     """
     category = request.args.get("category")
     if category is not None:
         category = validate_category(category, _config().categories)
-    return jsonify([e.to_dict() for e in _repo().list(category=category)])
+    month = request.args.get("month")
+    if month is not None:
+        month = validate_month(month)
+    return jsonify([e.to_dict() for e in _repo().list(category=category, month=month)])
 
 
 @bp.post("/api/expense")

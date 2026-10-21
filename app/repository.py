@@ -16,7 +16,9 @@ from app.models import Expense
 class ExpenseRepository(Protocol):
     """Speicher-Vertrag. Die Routen kennen nur diese Methoden."""
 
-    def list(self, category: str | None = None) -> list[Expense]: ...
+    def list(
+        self, category: str | None = None, month: str | None = None
+    ) -> list[Expense]: ...
     def get(self, expense_id: int) -> Expense | None: ...
     def add(self, description: str, amount: Decimal, category: str, date: date) -> Expense: ...
     def update(
@@ -34,11 +36,17 @@ class InMemoryExpenseRepository:
         self._next_id = 1
         self._lock = threading.Lock()
 
-    def list(self, category: str | None = None) -> list[Expense]:
-        """Ausgaben nach Datum sortiert (neueste zuerst), optional nach Kategorie gefiltert."""
+    def list(self, category: str | None = None, month: str | None = None) -> list[Expense]:
+        """Ausgaben nach Datum sortiert (neueste zuerst).
+
+        Optional nach Kategorie und/oder Monat ("JJJJ-MM") gefiltert.
+        """
         with self._lock:
             expenses = [
-                e for e in self._expenses.values() if category is None or e.category == category
+                e
+                for e in self._expenses.values()
+                if (category is None or e.category == category)
+                and (month is None or e.date.strftime("%Y-%m") == month)
             ]
         return sorted(expenses, key=lambda e: (e.date, e.id), reverse=True)
 
