@@ -19,6 +19,10 @@ class ExpenseRepository(Protocol):
     def list(self, category: str | None = None) -> list[Expense]: ...
     def get(self, expense_id: int) -> Expense | None: ...
     def add(self, description: str, amount: Decimal, category: str, date: date) -> Expense: ...
+    def update(
+        self, expense_id: int, description: str, amount: Decimal, category: str, date: date
+    ) -> Expense | None: ...
+    def delete(self, expense_id: int) -> bool: ...
     def healthy(self) -> bool: ...
 
 
@@ -54,6 +58,28 @@ class InMemoryExpenseRepository:
             self._expenses[expense.id] = expense
             self._next_id += 1
             return expense
+
+    def update(
+        self, expense_id: int, description: str, amount: Decimal, category: str, date: date
+    ) -> Expense | None:
+        """Ersetzt alle Felder einer Ausgabe. Gibt None zurueck, wenn die ID unbekannt ist."""
+        with self._lock:
+            if expense_id not in self._expenses:
+                return None
+            expense = Expense(
+                id=expense_id,
+                description=description,
+                amount=amount,
+                category=category,
+                date=date,
+            )
+            self._expenses[expense_id] = expense
+            return expense
+
+    def delete(self, expense_id: int) -> bool:
+        """Loescht eine Ausgabe. Gibt False zurueck, wenn die ID unbekannt ist."""
+        with self._lock:
+            return self._expenses.pop(expense_id, None) is not None
 
     def healthy(self) -> bool:
         return True

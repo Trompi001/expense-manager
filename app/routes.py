@@ -79,3 +79,28 @@ def get_expense(expense_id: int):
     if expense is None:
         return jsonify(error="Ausgabe nicht gefunden"), 404
     return jsonify(expense.to_dict())
+
+
+@bp.put("/api/expense/<int:expense_id>")
+def update_expense(expense_id: int):
+    """Ersetzt alle Felder einer Ausgabe (gleiche Validierung wie beim Erstellen)."""
+    if _repo().get(expense_id) is None:
+        return jsonify(error="Ausgabe nicht gefunden"), 404
+    payload = request.get_json(silent=True) or {}
+    expense = _repo().update(
+        expense_id,
+        description=validate_description(payload.get("description")),
+        amount=validate_amount(payload.get("amount")),
+        category=validate_category(payload.get("category"), _config().categories),
+        date=validate_date(payload.get("date")),
+    )
+    if expense is None:
+        return jsonify(error="Ausgabe nicht gefunden"), 404
+    return jsonify(expense.to_dict())
+
+
+@bp.delete("/api/expense/<int:expense_id>")
+def delete_expense(expense_id: int):
+    if not _repo().delete(expense_id):
+        return jsonify(error="Ausgabe nicht gefunden"), 404
+    return "", 204

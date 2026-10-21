@@ -40,7 +40,8 @@
           {% endfor %}
         </select>
         <input id="date" name="date" type="date" required />
-        <button type="submit">Hinzufügen</button>
+        <button type="submit" id="submit">Hinzufügen</button>
+        <button type="button" id="cancel" class="secondary" hidden>Abbrechen</button>
       </form>
 
       <p id="error" class="error" hidden></p>
@@ -71,6 +72,44 @@
       }
 
       const filter = document.getElementById("filter");
+      const submitButton = document.getElementById("submit");
+      const cancelButton = document.getElementById("cancel");
+
+      // ID der Ausgabe, die gerade bearbeitet wird (null = neue Ausgabe)
+      let editingId = null;
+
+      function resetForm() {
+        editingId = null;
+        form.reset();
+        document.getElementById("date").valueAsDate = new Date();
+        submitButton.textContent = "Hinzufügen";
+        cancelButton.hidden = true;
+      }
+
+      function startEdit(expense) {
+        editingId = expense.id;
+        showError("");
+        form.elements.description.value = expense.description;
+        form.elements.amount.value = expense.amount;
+        form.elements.category.value = expense.category;
+        form.elements.date.value = expense.date;
+        submitButton.textContent = "Speichern";
+        cancelButton.hidden = false;
+        form.elements.description.focus();
+      }
+
+      async function deleteExpense(expense) {
+        if (!confirm(`„${expense.description}“ wirklich löschen?`)) return;
+        showError("");
+        const res = await fetch(`/api/expense/${expense.id}`, { method: "DELETE" });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          showError(body.error || `Löschen fehlgeschlagen (HTTP ${res.status})`);
+        } else if (editingId === expense.id) {
+          resetForm();
+        }
+        await loadExpenses();
+      }
 
       // "2026-10-06" -> "06.10.2026". Bewusst ohne new Date(), weil das den
       // String als UTC liest und je nach Zeitzone einen Tag verschieben kann.
@@ -104,20 +143,33 @@
           category.textContent = e.category;
           const amount = document.createElement("strong");
           amount.textContent = `${e.amount} CHF`;
-          item.append(text, category, amount);
+          const editButton = document.createElement("button");
+          editButton.type = "button";
+          editButton.textContent = "Bearbeiten";
+          editButton.addEventListener("click", () => startEdit(e));
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.textContent = "Löschen";
+          deleteButton.addEventListener("click", () => deleteExpense(e));
+          item.append(text, category, amount, editButton, deleteButton);
           container.append(item);
         }
       }
 
       filter.addEventListener("change", loadExpenses);
+      cancelButton.addEventListener("click", () => {
+        showError("");
+        resetForm();
+      });
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         showError("");
 
         const data = Object.fromEntries(new FormData(form));
-        const res = await fetch("/api/expense", {
-          method: "POST",
+        const url = editingId === null ? "/api/expense" : `/api/expense/${editingId}`;
+        const res = await fetch(url, {
+          method: editingId === null ? "POST" : "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
@@ -128,8 +180,7 @@
           return;
         }
 
-        form.reset();
-        document.getElementById("date").valueAsDate = new Date();
+        resetForm();
         await loadExpenses();
       });
 

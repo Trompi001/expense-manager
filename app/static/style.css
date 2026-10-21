@@ -126,10 +126,25 @@ button {
   cursor: pointer;
 }
 
-li button {
+li button,
+button.secondary {
   background: transparent;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+li button:hover,
+button.secondary:hover {
+  color: var(--fg);
+}
+
+li button:last-of-type:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+button[hidden] {
+  display: none;
 }
 
 .error {
