@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -16,6 +16,15 @@ class Config:
     database_url: str | None
     version: str
     log_level: str
+    categories: list[str] = field(
+        default_factory=lambda: [
+            "Lebensmittel",
+            "Miete",
+            "Transport",
+            "Freizeit",
+            "Sonstiges",
+        ]
+    )
 
     @classmethod
     def from_env(cls) -> Config:
