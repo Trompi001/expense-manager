@@ -24,15 +24,23 @@
             <span class="total-amount" id="total">0.00</span>
             <span class="total-label" id="total-label">CHF in 0 Ausgaben</span>
           </div>
-          <label class="field inline">
-            <span class="sr-only">Kategorie filtern</span>
-            <select id="filter">
-              <option value="">Alle Kategorien</option>
-              {% for category in categories %}
-                <option value="{{ category }}">{{ category }}</option>
-              {% endfor %}
-            </select>
-          </label>
+          <div class="filters">
+            <label class="field inline">
+              <span class="sr-only">Monat filtern</span>
+              <select id="month-filter">
+                <option value="">Alle Monate</option>
+              </select>
+            </label>
+            <label class="field inline">
+              <span class="sr-only">Kategorie filtern</span>
+              <select id="filter">
+                <option value="">Alle Kategorien</option>
+                {% for category in categories %}
+                  <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
         </div>
         <ul id="expenses" class="expenses"></ul>
       </section>
@@ -96,6 +104,7 @@
       const errorBox = $("error");
       const submitButton = $("submit");
       const filter = $("filter");
+      const monthFilter = $("month-filter");
       const list = $("expenses");
       const summaryView = $("summary-view");
 
@@ -251,6 +260,7 @@
       async function loadExpenses() {
         const params = new URLSearchParams();
         if (filter.value) params.set("category", filter.value);
+        if (monthFilter.value) params.set("month", monthFilter.value);
         const res = await fetch(`/api/expense?${params}`);
         if (!res.ok) {
           list.replaceChildren(el("li", "empty", await errorMessage(res, "Laden fehlgeschlagen")));
@@ -264,8 +274,8 @@
           `CHF in ${expenses.length} ${expenses.length === 1 ? "Ausgabe" : "Ausgaben"}`;
 
         if (expenses.length === 0) {
-          const hint = filter.value
-            ? "Keine Ausgaben in dieser Kategorie."
+          const hint = filter.value || monthFilter.value
+            ? "Keine Ausgaben für diese Auswahl."
             : "Noch keine Ausgaben. Erfasse die erste mit „Neue Ausgabe“.";
           list.replaceChildren(el("li", "empty", hint));
           return;
@@ -275,6 +285,18 @@
       }
 
       filter.addEventListener("change", loadExpenses);
+      monthFilter.addEventListener("change", loadExpenses);
+
+      // Monatsauswahl: nur Monate, in denen es Ausgaben gibt (neueste zuerst).
+      async function loadMonthOptions() {
+        const res = await fetch("/api/summary?group_by=month");
+        if (!res.ok) return;
+        const months = (await res.json()).map((r) => r.month);
+        const selected = months.includes(monthFilter.value) ? monthFilter.value : "";
+        const all = new Option("Alle Monate", "");
+        monthFilter.replaceChildren(all, ...months.map((m) => new Option(formatMonth(m), m)));
+        monthFilter.value = selected;
+      }
 
       // --- Auswertung -------------------------------------------------------
 
@@ -366,6 +388,7 @@
 
       // Liste und Auswertung gemeinsam aktualisieren
       async function refresh() {
+        await loadMonthOptions();
         await Promise.all([loadExpenses(), loadSummary()]);
       }
 

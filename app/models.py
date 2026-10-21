@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
 MAX_DESCRIPTION_LENGTH = 200
+MONTH_PATTERN = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 
 
 class ValidationError(ValueError):
@@ -67,3 +69,10 @@ def validate_date(value: object) -> date:
         return date.fromisoformat(value)
     except ValueError:
         raise ValidationError("Datum muss im Format JJJJ-MM-TT sein") from None
+
+
+def validate_month(value: object) -> str:
+    """Monat im Format JJJJ-MM, z. B. "2024-06"."""
+    if not isinstance(value, str) or not MONTH_PATTERN.fullmatch(value):
+        raise ValidationError("Monat muss im Format JJJJ-MM sein")
+    return value
