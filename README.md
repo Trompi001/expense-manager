@@ -12,7 +12,7 @@ Beträge werden intern als `Decimal` gerechnet und in CHF mit zwei Nachkommastel
 
 ## Voraussetzungen
 
-- Python ≥ 3.9
+- Python ≥ 3.12
 - Git
 - `make` (optional, für die Kurzbefehle im `Makefile`)
 
