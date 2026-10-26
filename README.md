@@ -54,6 +54,27 @@ Weitere Befehle (`make help` zeigt alle):
 | `make fmt` | formatiert den Code mit ruff |
 | `make clean` | entfernt Caches und Testartefakte |
 
+## Docker
+
+Voraussetzung: Docker Desktop bzw. Docker Engine mit Compose v2.
+
+```
+cp .env.example .env     # optional, Standardwerte funktionieren auch ohne
+docker compose up --build
+```
+
+Das startet die App (<http://localhost:8000>) zusammen mit Postgres 16. `web` wartet, bis die Datenbank gesund ist. Die Daten liegen im benannten Volume `db-data` und überstehen `docker compose down`. Nur `docker compose down -v` löscht sie.
+
+Nur das Image bauen und prüfen:
+
+```
+make build                                    # Image expense-manager:local
+docker run --rm expense-manager:local whoami  # appuser, nicht root
+docker run --rm -p 8000:8000 expense-manager:local   # In-Memory, ohne Datenbank
+```
+
+Das Image ist ein Multi-Stage-Build auf `python:3.12-slim`, läuft als unprivilegierter Benutzer `appuser` und hat einen `HEALTHCHECK` auf `/health`. `make up` und `make down` sind Kurzformen für Compose.
+
 ## Konfiguration
 
 Die Konfiguration kommt aus Umgebungsvariablen (siehe `app/config.py`):
@@ -61,6 +82,8 @@ Die Konfiguration kommt aus Umgebungsvariablen (siehe `app/config.py`):
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `APP_VERSION` | `0.0.0-dev` | Version, die `/health` und die Startseite anzeigen |
+| `POSTGRES_PASSWORD` | `changeme` | Passwort der Compose-Datenbank (nur für `docker compose`, siehe `.env.example`) |
+| `GUNICORN_WORKERS` | `1` | Anzahl Worker im Container (Compose setzt 2) |
 | `LOG_LEVEL` | `INFO` | Log-Stufe (`DEBUG`, `INFO`, `WARNING`, …) |
 | `DATABASE_URL` | – | leer: In-Memory-Speicher. Gesetzt (z. B. `postgresql://user:pw@host:5432/db`): Postgres, die Tabelle `expenses` wird beim Start angelegt |
 
@@ -111,7 +134,11 @@ expense-manager/
 ├── README.md
 ├── LICENSE
 ├── Makefile                Kurzbefehle (run, test, lint, …)
-├── pytest.ini              pytest-Konfiguration
+├── pyproject.toml          Projekt-, pytest-, coverage- und ruff-Konfiguration
+├── CONTRIBUTING.md         Branching- und Commit-Regeln
+├── Dockerfile              Multi-Stage-Image (non-root, Healthcheck)
+├── docker-compose.yml      Dienste web + db (Postgres 16, Volume)
+├── .dockerignore           Ausschlussliste für den Build-Kontext
 ├── requirements.txt        Laufzeit-Abhängigkeiten
 ├── requirements-dev.txt    zusätzlich Test- und Lint-Werkzeuge
 ├── wsgi.py                 Einstiegspunkt (z. B. für gunicorn)
