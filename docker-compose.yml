@@ -1,0 +1,42 @@
+# Zwei Dienste in einem Netzwerk: die Anwendung und ihre Datenbank.
+#   docker compose up --build     starten
+#   docker compose down           stoppen, Volume bleibt erhalten
+#   docker compose down -v        stoppen und Volume loeschen
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-1.0.0-local}
+    ports:
+      - "8000:8000"
+    environment:
+      # "db" ist der DNS-Name des Datenbank-Containers im Compose-Netzwerk.
+      DATABASE_URL: postgresql://expenses:${POSTGRES_PASSWORD:-changeme}@db:5432/expenses
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Mehrere Worker sind unbedenklich: Postgres haelt den gemeinsamen Zustand.
+      GUNICORN_WORKERS: 2
+    depends_on:
+      db:
+        # Ohne diese Bedingung startet web, bevor Postgres Verbindungen annimmt.
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: expenses
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: expenses
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expenses -d expenses"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  db-data:
