@@ -42,7 +42,7 @@ oder ohne `make`:
 flask --app wsgi run --debug --port 8000
 ```
 
-Die App ist danach unter <http://127.0.0.1:8000> erreichbar. Die Ausgaben liegen aktuell nur im Arbeitsspeicher und sind nach einem Neustart weg.
+Die App ist danach unter <http://127.0.0.1:8000> erreichbar. Ohne `DATABASE_URL` liegen die Ausgaben nur im Arbeitsspeicher und sind nach einem Neustart weg. Mit `DATABASE_URL` (siehe Konfiguration) werden sie in Postgres gespeichert.
 
 Weitere Befehle (`make help` zeigt alle):
 
@@ -62,7 +62,7 @@ Die Konfiguration kommt aus Umgebungsvariablen (siehe `app/config.py`):
 |---|---|---|
 | `APP_VERSION` | `0.0.0-dev` | Version, die `/health` und die Startseite anzeigen |
 | `LOG_LEVEL` | `INFO` | Log-Stufe (`DEBUG`, `INFO`, `WARNING`, …) |
-| `DATABASE_URL` | – | für eine spätere Datenbank vorgesehen, hat aktuell noch keine Wirkung |
+| `DATABASE_URL` | – | leer: In-Memory-Speicher. Gesetzt (z. B. `postgresql://user:pw@host:5432/db`): Postgres, die Tabelle `expenses` wird beim Start angelegt |
 
 Die Kategorien sind in `app/config.py` hinterlegt: Lebensmittel, Miete, Transport, Freizeit, Sonstiges.
 
