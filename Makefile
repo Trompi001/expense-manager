@@ -2,7 +2,7 @@
 IMAGE ?= expense-manager
 TAG   ?= local
 
-.PHONY: help install run test lint fmt cov build up down clean
+.PHONY: help install run test lint fmt cov package build up down clean
 
 help: ## Zeigt diese Hilfe an
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ lint: ## Prüft Stil und Importsortierung
 fmt: ## Formatiert den Code
 	ruff check --fix .
 	ruff format .
+
+package: ## Baut wheel und sdist nach dist/
+	python -m build
 
 build: ## Baut das Container-Image
 	docker build --build-arg APP_VERSION=$(TAG) -t $(IMAGE):$(TAG) .

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "expense-manager"
+version = "1.0.0"
+description = "Web-App zur Ausgabenverwaltung mit Auswertung nach Kategorie und Monat"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+# Ohne diese Zeile fehlen Template und CSS im gebauten Paket.
+app = ["templates/*", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Projektwurzel auf sys.path, damit `from app import ...` auch mit blossem `pytest` klappt.
+pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# Die CI (make cov) schlaegt fehl, wenn die Abdeckung unter diese Schwelle faellt.
+fail_under = 80
+show_missing = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+# E,F = pycodestyle/pyflakes, I = Importsortierung, B = haeufige Fehler,
+# UP = veraltete Python-Idiome
+select = ["E", "F", "I", "B", "UP"]
+# Zeilenlaenge ueberlaesst das Projekt dem Formatter (ruff format).
+ignore = ["E501"]
