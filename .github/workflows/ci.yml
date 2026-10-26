@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # Laufende Durchläufe desselben Branches abbrechen, wenn neu gepusht wird.
 concurrency:
@@ -52,5 +53,50 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      # Das Coverage-Gate (fail_under = 80) kommt aus pyproject.toml.
       - name: Run tests with coverage
-        run: make cov
+        run: pytest --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: error
+
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    # Gate: Der Build startet erst, wenn Lint und Tests gruen sind.
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Nur bauen, kein Push in eine Registry (folgt mit dem Deployment).
+      - name: Build container image
+        run: docker build --build-arg APP_VERSION=ci-${{ github.sha }} -t expense-manager:ci .
+
+      - name: Check that the container does not run as root
+        run: |
+          user="$(docker run --rm expense-manager:ci whoami)"
+          echo "Container-Benutzer: $user"
+          test "$user" != "root"
+
+      # Startet App und Postgres wie lokal und prueft die Kette Web -> Datenbank.
+      - name: Smoke-test the compose stack
+        run: |
+          docker compose up -d --build --wait --wait-timeout 120
+          curl -sf http://127.0.0.1:8000/health
+          curl -sf http://127.0.0.1:8000/ready
+          curl -sf -X POST http://127.0.0.1:8000/api/expense \
+            -H "Content-Type: application/json" \
+            -d '{"description":"CI-Smoke","amount":1.5,"category":"Sonstiges","date":"2026-01-01"}'
+          curl -sf http://127.0.0.1:8000/api/expense | grep -q "CI-Smoke"
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

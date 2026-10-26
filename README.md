@@ -1,5 +1,7 @@
 # Expense Manager
 
+![CI](https://github.com/Trompi001/expense-manager/actions/workflows/ci.yml/badge.svg)
+
 Eine Web-App zur Ausgabenverwaltung, mit der Nutzerinnen und Nutzer ihre Ausgaben erfassen und nach Kategorie und Monat auswerten können.
 
 ## Funktionen
