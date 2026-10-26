@@ -120,12 +120,16 @@ expense-manager/
 │   ├── aggregations.py     Summen je Kategorie und Monat (reine Funktionen)
 │   ├── config.py           Konfiguration aus der Umgebung
 │   ├── models.py           Ausgabe und Validierung
-│   ├── repository.py       Speicherschicht (aktuell im Arbeitsspeicher)
+│   ├── repository.py       Speicherschicht (In-Memory und Postgres)
 │   ├── routes.py           HTTP-Routen (API und Startseite)
 │   ├── static/             CSS
 │   └── templates/          HTML-Vorlage
 └── tests/                  automatisierte Tests (pytest)
 ```
+
+## Mitarbeit und Branching
+
+Es gilt **GitHub Flow**: `main` ist immer lauffähig und geschützt, jede Änderung läuft über einen kurzlebigen Branch (`feature/…`, `fix/…`, `chore/…`, `docs/…`) und einen Pull Request mit grüner CI. Die Details, die Commit-Konventionen und die Selbstprüfung stehen in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Lizenz
 
