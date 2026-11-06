@@ -1,0 +1,76 @@
+# Continuous Deployment fuer den Expense Manager.
+#
+# Loest den Render-Deploy erst aus, wenn die CI auf main gruen ist, und prueft
+# danach die laufende Instanz mit dem Smoke-Test.
+#
+# Benoetigt in GitHub (Settings -> Secrets and variables -> Actions):
+#   - Secret   RENDER_DEPLOY_HOOK : Deploy-Hook-URL des Render-Services
+#   - Variable APP_URL            : oeffentliche URL
+#
+# Setzt voraus, dass der CI-Workflow (ci.yml) den Namen "CI" traegt.
+
+name: CD
+
+on:
+  # Nach Abschluss des CI-Workflows auf main. workflow_run feuert immer; die
+  # `if`-Bedingung am Job verhindert, dass ein roter Build deployt wird.
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+# Der Workflow liest nur das Repository und ruft eine externe URL auf.
+permissions:
+  contents: read
+
+# Zwei Deploys nie gleichzeitig; ein laufender Deploy wird nicht abgebrochen.
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    # Manueller Start, oder nur wenn der vorgelagerte CI-Lauf erfolgreich war.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      # Bei workflow_run den Commit auschecken, den die CI geprueft hat.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "${RENDER_DEPLOY_HOOK}" ]; then
+            echo "RENDER_DEPLOY_HOOK secret is not set" >&2
+            exit 1
+          fi
+          # Der Hook antwortet mit 200 und einer Deploy-ID. --fail macht aus
+          # 4xx/5xx einen Job-Fehler. Kein -v: die URL ist ein Geheimnis.
+          echo "Triggering Render deploy..."
+          curl --fail --silent --show-error --request POST "${RENDER_DEPLOY_HOOK}"
+          echo
+
+      - name: Wait for the deploy to roll out
+        # Der Hook startet den Deploy nur; Build und Release dauern einige
+        # Minuten. Wir warten fix, danach pollt der Smoke-Test mit Backoff.
+        run: sleep "${WAIT_SECONDS}"
+        env:
+          WAIT_SECONDS: "90"
+
+      - name: Smoke-test the running service
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "${APP_URL}" ]; then
+            echo "APP_URL variable is not set" >&2
+            exit 1
+          fi
+          chmod +x scripts/smoke-test.sh
+          ./scripts/smoke-test.sh "${APP_URL}"
