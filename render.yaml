@@ -1,0 +1,53 @@
+# Render Blueprint (Infrastructure as Code fuer Render).
+#
+# Beschreibt den Expense-Manager-Webservice deklarativ. Render sucht die Datei
+# nur im WURZELVERZEICHNIS des verbundenen Repositories. Alle Pfade unten sind
+# relativ dazu.
+#
+# Doku: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: expense-manager
+    runtime: docker
+
+    # Free: schlaeft nach 15 Minuten ohne Zugriffe ein und braucht beim naechsten
+    # Aufruf bis zu eine Minute zum Aufwachen. Frankfurt ist die naechste Region
+    # zur Schweiz; sie laesst sich nach dem Anlegen nicht mehr aendern.
+    plan: free
+    region: frankfurt
+    branch: main
+
+    # Das Dockerfile liegt im Wurzelverzeichnis, der Build-Kontext ist das ganze Repo.
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Kein Startkommando noetig: Das Image bindet bereits an 8000 und startet
+    # Gunicorn mit der Worker-Zahl aus GUNICORN_WORKERS.
+
+    # Render leitet Traffic erst auf einen neuen Deploy, wenn dieser Pfad 2xx/3xx
+    # liefert. Muss /health sein (Liveness, ohne Datenbank), nie /ready.
+    healthCheckPath: /health
+
+    # Bei jedem Push auf `branch` automatisch deployen. Fuer CI-gesteuerte Deploys
+    # ueber einen Deploy Hook (Schritt 10) auf `off` stellen.
+    autoDeployTrigger: commit
+
+    envVars:
+      # Render leitet Traffic an PORT (Standard 10000). Der Container lauscht fest
+      # auf 8000, deshalb wird PORT darauf gesetzt.
+      - key: PORT
+        value: "8000"
+      # Bewusst ein Worker: Ohne DATABASE_URL liegen die Ausgaben im Speicher eines
+      # einzelnen Prozesses. Bei zwei Workern waere eine angelegte Ausgabe auf dem
+      # anderen Worker ein 404.
+      - key: GUNICORN_WORKERS
+        value: "1"
+      # Erscheint in /health und /metrics. Bei jedem Release erhoehen.
+      - key: APP_VERSION
+        value: "1.0.0"
+      - key: LOG_LEVEL
+        value: INFO
+      # DATABASE_URL wird bewusst NICHT gesetzt: ohne sie nutzt die App den
+      # In-Memory-Speicher. Fuer Postgres einen `databases:`-Block ergaenzen und
+      # per fromDatabase referenzieren.
