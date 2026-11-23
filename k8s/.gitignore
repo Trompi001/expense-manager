@@ -1,0 +1,4 @@
+# Never commit real secrets. The example template (secret.example.yaml) stays
+# versioned; the secret.yaml derived from it with real values does not.
+secret.yaml
+*.secret.yaml

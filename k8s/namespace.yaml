@@ -1,0 +1,8 @@
+# A dedicated namespace groups all objects of the application. The whole lab can
+# then be removed cleanly with "kubectl delete namespace expense-manager".
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: expense-manager
+  labels:
+    app: expense-manager

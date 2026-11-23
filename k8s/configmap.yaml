@@ -1,0 +1,14 @@
+# Non-secret configuration. Injected as environment variables via envFrom.
+# APP_VERSION shows up in the /health and /metrics responses. These values
+# override the defaults baked into the image (twelve-factor: configuration comes
+# from the environment, not from code).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expense-manager-config
+  namespace: expense-manager
+  labels:
+    app: expense-manager
+data:
+  APP_VERSION: "1.0.0"
+  LOG_LEVEL: "INFO"
