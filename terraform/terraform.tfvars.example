@@ -1,0 +1,6 @@
+# Nach terraform.tfvars kopieren und anpassen (terraform.tfvars ist git-ignoriert).
+host_port      = 8080
+container_name = "expense-manager-web"
+
+# Nur nötig, wenn Terraform den Docker-Socket nicht findet (macOS / Docker Desktop):
+docker_host = "unix:///Users/<name>/.docker/run/docker.sock"
