@@ -1,0 +1,117 @@
+# The Deployment describes the desired state: which image, how many replicas,
+# how to update. The Deployment controller reconciles actual towards desired
+# state (reconciliation loop) and creates a ReplicaSet to do so.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: expense-manager
+  namespace: expense-manager
+  labels:
+    app: expense-manager
+spec:
+  # Start with 1 replica; scaled to 3 in the lab via "kubectl scale".
+  replicas: 1
+  # The selector MUST match the pod labels (template.metadata.labels). If they
+  # differ, the Deployment does not find "its" pods -- the most common beginner
+  # mistake.
+  selector:
+    matchLabels:
+      app: expense-manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # At most 1 pod ABOVE the desired count during an update ...
+      maxSurge: 1
+      # ... and never fewer than the desired count available. Together with the
+      # readinessProbe this loses zero requests during the update.
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: expense-manager
+    spec:
+      securityContext:
+        # Assign mounted volumes (the /tmp emptyDir below) to this group so the
+        # non-root user can write to them.
+        fsGroup: 10001
+      containers:
+        - name: expense-manager
+          image: expense-manager:local
+          # Explicit IfNotPresent: use the image provided locally via "kind load"
+          # instead of pulling it from a registry. (With a :latest tag the
+          # default would be "Always" and force a pull -- the cause of many
+          # ErrImagePull failures in the lab.)
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: expense-manager-config
+            # Database Secret intentionally disabled: in the lab the app runs
+            # in-memory. Only uncomment with a running Postgres instance,
+            # otherwise /ready fails and no pod becomes Ready.
+            # - secretRef:
+            #     name: expense-manager-secret
+          livenessProbe:
+            # Liveness == "is the process still alive?". /health does NOT check
+            # the database -- otherwise a slow DB would trigger a restart loop
+            # and create an outage that was not one before.
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            # Readiness == "may this pod receive traffic?". /ready checks the
+            # dependencies (DB). While not ready, the Service removes the pod
+            # from rotation -- the basis of the zero-downtime update.
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            # requests = guaranteed allocation (basis for scheduling and the HPA).
+            # limits   = hard ceiling (CPU is throttled, memory over the limit
+            #            => OOMKilled).
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          lifecycle:
+            preStop:
+              # Delay shutdown so the pod is removed from the Service endpoints
+              # BEFORE gunicorn stops accepting connections. Without this, requests
+              # still routed to the terminating pod fail (curl [000]) during a
+              # rolling update. Must stay shorter than terminationGracePeriodSeconds.
+              exec:
+                command: ["sh", "-c", "sleep 5"]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            # REQUIRED, not just good practice. With readOnlyRootFilesystem: true
+            # the whole root filesystem is read-only. gunicorn creates a
+            # per-worker heartbeat file via Python's tempfile (default /tmp); with
+            # no writable /tmp it aborts on startup with "No usable temporary
+            # directory found" and the pod enters CrashLoopBackOff. This emptyDir
+            # is the one writable path that lets the container start at all.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

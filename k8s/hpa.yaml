@@ -1,0 +1,33 @@
+# HorizontalPodAutoscaler: adjusts the replica count automatically based on CPU
+# utilization. Optional -- an extra task in the lab.
+#
+# PREREQUISITE: the metrics-server must be running, otherwise utilization stays
+# "<unknown>" and the HPA does not scale. It is not preinstalled in kind:
+#
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+#   kubectl -n kube-system patch deployment metrics-server --type=json \
+#     -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+#
+# The HPA computes against resources.requests.cpu from the Deployment (100m).
+# averageUtilization: 70 therefore means a target of ~70m CPU per pod.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: expense-manager
+  namespace: expense-manager
+  labels:
+    app: expense-manager
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: expense-manager
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

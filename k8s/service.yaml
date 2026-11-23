@@ -1,0 +1,24 @@
+# Stable in-cluster address for the pods. Pods are short-lived and change their
+# IP; the Service stays constant. It finds its pods via the selector
+# (app: expense-manager) and load-balances requests across all READY pods.
+#
+# In-cluster DNS name: expense-manager.expense-manager.svc.cluster.local
+# (scheme: <service>.<namespace>.svc.cluster.local)
+apiVersion: v1
+kind: Service
+metadata:
+  name: expense-manager
+  namespace: expense-manager
+  labels:
+    app: expense-manager
+spec:
+  type: ClusterIP
+  selector:
+    app: expense-manager
+  ports:
+    - name: http
+      port: 80
+      # targetPort is the container port (8000). A wrong value here is a common
+      # mistake: the Service is reachable but only returns timeouts.
+      targetPort: 8000
+      protocol: TCP
