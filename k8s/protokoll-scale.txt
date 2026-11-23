@@ -1,0 +1,5 @@
+# Skalierung imperativ: kubectl scale deployment/expense-manager --replicas=3
+NAME                               READY   STATUS    RESTARTS   AGE   IP           NODE                      NOMINATED NODE   READINESS GATES
+expense-manager-6f9c687545-8bbt5   1/1     Running   0          15s   10.244.1.2   expense-manager-worker    <none>           <none>
+expense-manager-6f9c687545-f5w5x   1/1     Running   0          15s   10.244.2.3   expense-manager-worker2   <none>           <none>
+expense-manager-6f9c687545-zclzk   1/1     Running   0          86s   10.244.2.2   expense-manager-worker2   <none>           <none>

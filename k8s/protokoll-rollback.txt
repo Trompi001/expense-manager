@@ -1,0 +1,19 @@
+deployment.apps/expense-manager 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+3         <none>
+4         <none>
+
+deployment.apps/expense-manager rolled back
+Waiting for deployment "expense-manager" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "expense-manager" rollout to finish: 1 old replicas are pending termination...
+deployment "expense-manager" successfully rolled out
+deployment.apps/expense-manager 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+4         <none>
+5         <none>
+
+expense-manager:local

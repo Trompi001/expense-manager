@@ -1,0 +1,26 @@
+# Alternative to port-forward: exposes the app on a fixed port on every node.
+# Together with extraPortMappings in kind-config.yaml the app is reachable from
+# the host at http://localhost:30080.
+#
+# Unlike "kubectl port-forward" (which binds to ONE pod), the NodePort routes via
+# kube-proxy to all READY pods and survives the replacement of individual pods --
+# ideal for the zero-downtime proof during a rolling update.
+apiVersion: v1
+kind: Service
+metadata:
+  name: expense-manager-nodeport
+  namespace: expense-manager
+  labels:
+    app: expense-manager
+spec:
+  type: NodePort
+  selector:
+    app: expense-manager
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      # Valid NodePort range: 30000-32767. Must match extraPortMappings in
+      # kind-config.yaml.
+      nodePort: 30080
+      protocol: TCP
